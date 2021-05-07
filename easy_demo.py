@@ -30,9 +30,13 @@ print(result[0].shape) #目标数x5
 from types import MethodType
 def new_simple_test(self, img, img_metas, proposals=None, rescale=False):
     x = self.extract_feat(img)
-    return self.rpn_head.simple_test_rpn(x, img_metas)
+    proposal_list = self.rpn_head.simple_test_rpn(x, img_metas)
+    if rescale:
+        for proposals, meta in zip(proposal_list, img_metas):
+            proposals[:, :4] /= proposals.new_tensor(meta['scale_factor'])
+    return [proposal.cpu().numpy() for proposal in proposal_list]
 model.simple_test = MethodType(new_simple_test,model)
-rpn_result = [inference_detector(model, img_path).cpu().numpy()]
+rpn_result = inference_detector(model, img_path)
 from mmdet.core.visualization import imshow_det_bboxes
 import mmcv
 import numpy as np
@@ -41,9 +45,10 @@ bboxes = np.vstack(rpn_result)
 labels = np.zeros(bboxes.shape[0],dtype=int)
 imshow_det_bboxes(img,bboxes,labels,None,
         class_names=['']*80,
-        score_thr=0.95,
+        score_thr=0.9,
         bbox_color='green',
-        thickness=1,
+        thickness=0.5,
+        font_size=3,
         show=True,
         wait_time=0.1)
 
